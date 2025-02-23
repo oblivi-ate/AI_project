@@ -2,6 +2,7 @@ import random
 from itertools import combinations
 
 # Generate all possible combinations of k-sized groups from n items
+//每个解是k个数组的组合  从n个样本中选择k个
 def generate_combinations(n, k):
     return list(combinations(range(n), k))
 
