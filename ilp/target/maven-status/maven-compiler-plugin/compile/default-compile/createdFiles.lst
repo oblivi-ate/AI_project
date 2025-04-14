@@ -1,0 +1,5 @@
+com/ilp/solver/SetCoverSolver.class
+com/ilp/solver/config/ProblemConfig.class
+com/ilp/solver/SetCoverSolution.class
+com/ilp/solver/Main.class
+com/ilp/solver/util/CombinationGenerator.class
