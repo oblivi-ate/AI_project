@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+  <title>Optimal Samples Selection System</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body class="bg-gray-100 font-sans flex flex-col items-center justify-center min-h-screen">
+  <h1 class="text-3xl font-bold mb-4">An Optimal Samples Selection System</h1>
+  <form class="bg-white p-8 rounded shadow-md w-full max-w-3xl">
+    <div class="flex justify-between items-center mb-4">
+      <p class="text-gray-700 font-bold">Data Base Resources</p>
+      <div class="flex space-x-4">
+        <button id="Data_display"
+          class="bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline">Display
+        </button>
+        <button id="Data_delete"
+          class="bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline">Delete
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <div class="flex flex-col space-y-2">
+        <label><input type="radio" name="resource"> 45- 7- 6- 5- 5-1</label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+      </div>
+      <div class="flex flex-col space-y-2">
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+      </div>
+      <div class="flex flex-col space-y-2">
+        <label><input type="radio" name="resource"> bce</label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+        <label><input type="radio" name="resource"></label>
+      </div>
+    </div>
+    <div class="flex justify-between mb-6">
+      <textarea id="valueInput" rows="10" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+      <div class="flex flex-col space-y-2 ml-4">
+        <button class="bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline">PREVIOUS</button>
+        <button class="bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline">RE_FILTER</button>
+        <button class="bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline">PRINT</button>
+      </div>
+    </div>
+  </form>
+  <script src="/static/js/script.js"></script>
+</body>
+
+</html>
