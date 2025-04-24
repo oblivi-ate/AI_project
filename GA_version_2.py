@@ -10,7 +10,6 @@ def test_case_1():
     s = 5
     m = 45
     x = 1
-    print("correct answer:", 6)
     return n, k, j, s, m, x
 
 def test_case_2():
@@ -20,7 +19,6 @@ def test_case_2():
     s = 4
     m = 45
     x = 1
-    print("correct answer:", 7)
     return n, k, j, s, m, x
 
 def test_case_3():
@@ -30,17 +28,51 @@ def test_case_3():
     s = 4
     m = 45
     x = 1
-    print("correct answer:", 12)
     return n, k, j, s, m, x
 
 def test_case_4():
     n = 8
     k = 6
-    j = 4
+    j = 6
     s = 5
     m = 45
     x = 1
-    print("correct answer:", 15)
+    return n, k, j, s, m, x
+
+def test_case_5():
+    n = 8
+    k = 6
+    j = 6
+    s = 5
+    m = 45
+    x = 4
+    return n, k, j, s, m, x
+
+def test_case_6():
+    n = 9
+    k = 6
+    j = 6
+    s = 4
+    m = 45
+    x = 1
+    return n, k, j, s, m, x
+
+def test_case_7():
+    n = 10
+    k = 6
+    j = 6
+    s = 4
+    m = 45
+    x = 1
+    return n, k, j, s, m, x
+
+def test_case_8():
+    n = 12
+    k = 6
+    j = 6
+    s = 4
+    m = 45
+    x = 1
     return n, k, j, s, m, x
 
 #endregion
@@ -65,14 +97,11 @@ def satisfies_condition(group, n, k, j, s):
     return False
 
 def fitness(solution, n, k, j, s):
-    # Convert solution to set of tuples for faster operations
     solution_sets = [set(group) for group in solution]
-    
-    # Generate all j-combinations
     all_items = list(range(n))
     j_combinations = list(combinations(all_items, j))
     
-    # Count how many j-combinations are covered
+    # Count covered j-combinations
     covered_count = 0
     for j_comb in j_combinations:
         for group in solution_sets:
@@ -80,59 +109,82 @@ def fitness(solution, n, k, j, s):
                 covered_count += 1
                 break
     
-    # Penalize larger solutions to find minimum number of groups
-    size_penalty = len(solution) / n
-    return covered_count - size_penalty
+    # Penalize uncovered combinations and large solutions
+    uncovered_penalty = len(j_combinations) - covered_count
+    size_penalty = len(solution) * 0.5  # Adjust weight for solution size penalty
+    return covered_count - uncovered_penalty - size_penalty
 
-def create_initial_population(n, k, population_size, min_groups, max_groups):
+def create_initial_population(n, k, population_size, min_groups, max_groups, j, s):
     population = []
     all_combinations = list(combinations(range(n), k))
     
-    # Adjust max_groups to not exceed the number of possible combinations
-    max_groups = min(max_groups, len(all_combinations))
-    
     for _ in range(population_size):
-        num_groups = random.randint(min_groups, max_groups)
-        solution = random.sample(all_combinations, num_groups)
+        solution = []
+        uncovered_j_combinations = list(combinations(range(n), j))
+        
+        while uncovered_j_combinations and len(solution) < max_groups:
+            # Select the group that covers the most uncovered j-combinations
+            best_group = max(all_combinations, key=lambda group: sum(
+                check_coverage(group, j_comb, s) for j_comb in uncovered_j_combinations
+            ))
+            solution.append(best_group)
+            
+            # Remove covered j-combinations
+            uncovered_j_combinations = [
+                j_comb for j_comb in uncovered_j_combinations
+                if not check_coverage(best_group, j_comb, s)
+            ]
+        
         population.append(solution)
     return population
 
 def crossover(parent1, parent2):
-    # Single point crossover
-    if len(parent1) > 1 and len(parent2) > 1:
-        point = random.randint(1, min(len(parent1), len(parent2)) - 1)
-        child1 = parent1[:point] + parent2[point:]
-        child2 = parent2[:point] + parent1[point:]
-        return child1, child2
-    return parent1, parent2
+    # Multi-point crossover
+    child1, child2 = [], []
+    for group1, group2 in zip(parent1, parent2):
+        if random.random() < 0.5:
+            child1.append(group1)
+            child2.append(group2)
+        else:
+            child1.append(group2)
+            child2.append(group1)
+    
+    # Remove duplicates and limit size
+    child1 = list(set(child1))[:len(parent1)]
+    child2 = list(set(child2))[:len(parent2)]
+    return child1, child2
 
-def mutate(solution, n, k, mutation_rate):
+def mutate(solution, n, k, mutation_rate, j, s):
     if random.random() < mutation_rate:
-        # Either add, remove, or replace a group
-        operation = random.choice(['add', 'remove', 'replace'])
         all_combinations = list(combinations(range(n), k))
+        operation = random.choice(['add', 'remove', 'replace'])
         
         if operation == 'add' and len(solution) < n:
             new_group = random.choice(all_combinations)
-            return list(solution) + [new_group]
+            solution.append(new_group)
         elif operation == 'remove' and len(solution) > 1:
-            return random.sample(solution, len(solution) - 1)
+            solution.pop(random.randint(0, len(solution) - 1))
         elif operation == 'replace':
             idx = random.randint(0, len(solution) - 1)
-            new_solution = list(solution)
-            new_solution[idx] = random.choice(all_combinations)
-            return new_solution
+            solution[idx] = random.choice(all_combinations)
+        
+        # Ensure the solution satisfies constraints
+        if satisfies_condition(solution, n, k, j, s):
+            return solution
     return solution
 
 def genetic_algorithm(n, k, j, s, population_size=50, generations=100, mutation_rate=0.1, elitism=True):
-    min_groups = max(3, j)  # Minimum groups based on problem examples
-    max_groups = n*2  # Maximum possible groups
+    min_groups = max(3, j)
+    max_groups = n * 2
     
-    population = create_initial_population(n, k, population_size, min_groups, max_groups)
+    population = create_initial_population(n, k, population_size, min_groups, max_groups, j, s)
     best_solution = None
     best_fitness = float('-inf')
 
     for generation in range(generations):
+        # Adjust mutation rate dynamically
+        mutation_rate = max(0.01, mutation_rate * (1 - generation / generations))
+        
         # Evaluate fitness
         fitness_scores = [(fitness(solution, n, k, j, s), solution) for solution in population]
         fitness_scores.sort(reverse=True)
@@ -152,8 +204,8 @@ def genetic_algorithm(n, k, j, s, population_size=50, generations=100, mutation_
         while len(next_population) < population_size:
             parent1, parent2 = random.sample(selected, 2)
             child1, child2 = crossover(parent1, parent2)
-            child1 = mutate(child1, n, k, mutation_rate)
-            child2 = mutate(child2, n, k, mutation_rate)
+            child1 = mutate(child1, n, k, mutation_rate, j, s)
+            child2 = mutate(child2, n, k, mutation_rate, j, s)
             next_population.extend([child1, child2])
         
         population = next_population[:population_size]
@@ -169,7 +221,6 @@ def tournament_selection(population, fitness_scores, num_selected):
     return selected
 
 def format_output(solution, m, n, k, j, s, x):
-    # Convert numeric solutions to letter representation
     letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     y = len(solution)
     
@@ -179,7 +230,9 @@ def format_output(solution, m, n, k, j, s, x):
         group_str = ','.join(letters[i] for i in group)
         groups.append(group_str)
     
-    return header + '\n' + '\n'.join(f"{i+1}.{group}" for i, group in enumerate(groups))
+    # Add coverage statistics
+    coverage_stats = f"Total groups: {y}, Coverage: {fitness(solution, n, k, j, s)}"
+    return header + '\n' + '\n'.join(f"{i+1}.{group}" for i, group in enumerate(groups)) + '\n' + coverage_stats
 
 # Example usage
 def main():
