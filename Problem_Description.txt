@@ -1,0 +1,100 @@
+Problem Description
+
+param: n, k, j, s 
+data range: (7 <= n <= 25), (4 <= k <= 7), (s <= j <= k)
+
+Here are C(n, k) groups from n, for each group has k samples.
+Select only some of them to fulfill the following conditions.
+
+Condition1: At least ONE group of k samples has ALL s samples groups from ALL j samples groups of n samples.
+Condition2: Output groups of k=6 samples (results) to a DB file, e.g., 40-9-6-4-4-x-y for m=40, n=9, k=6, j=s=4 for the xth run
+and y is the number of results obtained. 
+Condition3: Provide a way to EXECUTE and DELETE, etc. the obtained groups of k samples (results) onto the screen from a
+DB file, e.g., 45-9-6-4-4-x-y.These groups of k=6 samples are selected from the list. 
+
+The task is to minimize them and give the output groups.
+
+E.g. 1, when m=45, n=7 we randomly choose 7 samples, A,B,C,D,E,F,G and k=6, j=5, s=5, we obtain the following minimum 6 groups of k=6 samples, which guarantee at least ONE group of k=6 samples has ALL s=5 samples groups from ALL j=5 samples groups of n=7 samples,(i.e.nCj=7C5 and jCs =5C5).
+1.A,B,C,D,E,G
+2.A,B,C,D,F,G
+3.A,B,C,E,F,G
+4.A,B,D,E,F,G,
+5.A,C,D,E,F,G
+6.B,C,D,E,F,G
+
+E.g. 2, when m=45, n=8 we randomly choose 8 samples, A,B,C,D,E,F,G,H and k=6, j=4, s=4, we obtain
+the following minimum 7 groups of k=6 samples, which guarantees at least ONE group of k=6 samples has
+ALL s=4 samples groups from ALL j=4 samples groups of n=8 samples, (i.e., nCj=8C4 and jCs=4C4).
+1.A,B,C,D,G,H
+2.A,B,C,E,G,H
+3.A,B,C,F,G,H
+4.A,B,D,E,F,G
+5.A,C,D,E,F,H
+6.B,C,D,E,F,H
+7.C,D,E,F,G,H
+
+E.g. 3, when m=45, n=9 we randomly choose 9 samples, A,B,C,D,E,F,G,H,I and k=6, j=4, s=4, we obtain
+the following minimum 12 groups of k=6 samples, which guarantees at least ONE group of k=6 samples
+has ALL s=4 samples groups from ALL j=4 samples groups of n=9 samples, (i.e., nCj=9C4 and 4C4).
+1.A,B,C,D,E,I
+2.A,B,C,E,G,H
+3.A,B,C,F,H,I
+4.A,B,D,E,F,G
+5.A,B,D,G,H,I.
+6.A,C,D,E,F,H
+7.A,C,D,F,G,I
+8.A,E,F,G,H,I
+9.B,C,D,F,G,H
+10.B,C,E,F,G,I
+11.B,D,E,F,H,I
+12.C,D,E,G,H,I
+
+E.g.4, when m=45, n=8 we randomly choose 8 samples, A,B,C,D,E,F,G,H and k=6, j=6, s=5, we obtain
+the following minimum 4 groups of k=6 samples, which guarantees at least ONE group of k=6 samples has
+at least ONE s=5 samples group from ALL j=6 samples groups of n=8 samples, (i.e., nCj=8C6 and 6C5).
+1.A,B,C,E,G,H
+2.A,B,D,F,G,H
+3.A,C,D,E,F,H
+4.B,C,D,E,F,G
+
+E.g. 5, when m=45, n=8 we randomly choose 8 samples, A,B,C,D,E,F,G,H and k=6, j=6, s=5, we obtain
+the following minimum 10 groups of k=6 samples, which guarantees at least ONE group of k=6 samples
+has at least FOUR s=5 samples groups from ALL j=6 samples groups of n=9 samples, (i.e., nCj=8C6 and
+6C5).
+1.A,B,C,D,E,H
+2.A,B,C,E,F,H
+3.A,B,C,E,G,H
+4.A,B,D,E,F,G
+5.A,B,D,F,G,H.
+6.A,C,D,E,F,G
+7.A,D,E,F,G,H
+8.B,C,D,E,G,H
+9.B,C,D,F,G,H
+10.B,D,E,F,G,H
+
+E.g. 6, when m=45, n=9 we randomly choose 9 samples, A,B,C,D,E,F,G,H,I and k=6, j=5, s=4, we
+obtain the following minimum 3 groups of k=6 samples, which guarantees at least ONE group of k=6
+samples has at least ONE s=4 samples group from ALL j=5 samples groups of n=9 samples, (i.e., nCj=9C5
+and 5C4).
+1.A,B,D,F,G,H
+2.A,C,E,G,H,I
+3.B,C,D,E,F,I
+
+E.g. 7, when m=45, n=10 we randomly choose 10 samples, A,B,C,D,E,F,G,H,I,J and k=6, j=6, s=4, we
+obtain the following minimum 3 groups of k=6 samples, which guarantees at least ONE group of k=6
+samples has at least ONE s=4 samples group from ALL j=6 samples groups of n=10 samples, (i.e., 10C6 and
+6C4).
+1.A,B,E,G,I,J
+2.A,C,E,G,H,J
+3.B,C,D,F,H,I
+
+E.g. 8, when m=45, n=12 we randomly choose 12 samples, A,B,C,D,E,F,G,H,I,J,K,L and k=6, j=6, s=4,
+we obtain the following minimum 6 groups of k=6 samples, which guarantees at least ONE group of k=6
+samples has at least ONE s=4 samples group from ALL j=6 samples groups of n=12 samples. (i.e., nCj=12C6
+and jCs=6C4).
+1.A,B,D,G,K,L
+2.A,C,D,H,J,L
+3.A,D,E,F,I,L
+4.B,C,G,H,J,K.
+5.B,E,F,G,I,K
+6.C,E,F,H,I,J
