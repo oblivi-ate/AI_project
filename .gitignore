@@ -1,0 +1,6 @@
+# 缓存文件
+cache_coverage_*.pkl
+
+# 其他缓存
+__pycache__/
+*.py[cod]
