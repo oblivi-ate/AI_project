@@ -4,6 +4,8 @@ import os
 import numpy as np
 import random
 import time  # 添加time模块导入
+import pickle  # 添加pickle模块导入
+import hashlib  # 添加hashlib模块导入
 
 def is_dominated(set1, set2):
     """检查set1是否被set2支配（set2包含set1的所有元素且规模更小或相等）"""
@@ -112,8 +114,170 @@ def construct_ilp_problem(n, k, j, s, strict_coverage=True, min_cover=1):
     
     return solver, x, k_subsets, j_subsets, s_subsets
 
-def generate_initial_solution_ga(n, k, j, s, population_size=50, generations=100):
-    """使用遗传算法生成初始解"""
+def get_cache_filename(n, k, j, s):
+    """根据参数生成缓存文件名"""
+    # 使用MD5哈希值作为文件名，保证唯一性
+    key = f"n{n}_k{k}_j{j}_s{s}"
+    hash_obj = hashlib.md5(key.encode())
+    hash_str = hash_obj.hexdigest()
+    return f"cache_coverage_{hash_str}.pkl"
+
+def save_coverage_cache(cache_data, filename):
+    """将覆盖关系缓存保存到文件"""
+    with open(filename, 'wb') as f:
+        pickle.dump(cache_data, f)
+    print(f"缓存已保存到: {filename}")
+
+def load_coverage_cache(filename):
+    """从文件加载覆盖关系缓存"""
+    if os.path.exists(filename):
+        with open(filename, 'rb') as f:
+            cache_data = pickle.load(f)
+        print(f"从缓存文件加载: {filename}")
+        return cache_data
+    return None
+
+def precompute_coverage_relations(n, k, j, s, use_cache=True):
+    """预计算k集合和j组合的覆盖关系，使用优化的矩阵运算和数据结构"""
+    # 检查缓存
+    cache_filename = get_cache_filename(n, k, j, s)
+    if use_cache:
+        cache_data = load_coverage_cache(cache_filename)
+        if cache_data:
+            return cache_data
+    
+    print(f"开始预计算覆盖关系 (n={n}, k={k}, j={j}, s={s})...")
+    
+    # 使用numpy高效生成所有组合
+    all_k_sets = list(combinations(range(n), k))
+    all_j_combinations = list(combinations(range(n), j))
+    
+    # 使用位集合表示每个组合以提高集合运算效率
+    k_sets_bits = np.zeros((len(all_k_sets), n), dtype=bool)
+    for i, k_set in enumerate(all_k_sets):
+        k_sets_bits[i, list(k_set)] = True
+    
+    j_sets_bits = np.zeros((len(all_j_combinations), n), dtype=bool)
+    for i, j_comb in enumerate(all_j_combinations):
+        j_sets_bits[i, list(j_comb)] = True
+    
+    # 使用矩阵运算计算交集大小
+    # 为避免大规模矩阵计算导致内存问题，使用分块处理
+    block_size = 1000  # 根据内存情况调整
+    
+    # 创建高效的数据结构存储结果
+    coverage_lookup = {}
+    
+    for k_idx in range(len(all_k_sets)):
+        coverage_lookup[k_idx] = {}
+        k_bit = k_sets_bits[k_idx]
+        
+        # 分块处理j组合
+        for j_block_start in range(0, len(all_j_combinations), block_size):
+            j_block_end = min(j_block_start + block_size, len(all_j_combinations))
+            j_block = j_sets_bits[j_block_start:j_block_end]
+            
+            # 使用矩阵运算计算交集
+            # k_bit 是一个长度为n的布尔数组，j_block是多个j组合的布尔数组
+            intersections = np.logical_and(k_bit, j_block).sum(axis=1)
+            
+            # 处理每个j组合
+            for j_offset, intersection_size in enumerate(intersections):
+                j_idx = j_block_start + j_offset
+                j_comb = all_j_combinations[j_idx]
+                
+                # 只有当交集大小满足条件时才计算s子集
+                if intersection_size >= s:
+                    # 计算该k集合覆盖的s子集
+                    # 使用迭代器避免一次性生成所有组合
+                    s_combs = combinations(j_comb, s)
+                    covered_s = set()
+                    
+                    # 只考虑那些可能被k_set覆盖的s组合
+                    for s_comb in s_combs:
+                        # 使用位运算优化子集判断
+                        if all(item in all_k_sets[k_idx] for item in s_comb):
+                            covered_s.add(tuple(sorted(s_comb)))
+                    
+                    coverage_lookup[k_idx][j_idx] = covered_s
+                else:
+                    coverage_lookup[k_idx][j_idx] = set()  # 没有覆盖任何s子集
+    
+    # 使用更高效的数据结构优化
+    # 转换为嵌套字典，只保存有覆盖的关系，减少内存使用
+    optimized_lookup = {}
+    for k_idx in coverage_lookup:
+        non_empty = {j_idx: s_sets for j_idx, s_sets in coverage_lookup[k_idx].items() if s_sets}
+        if non_empty:
+            optimized_lookup[k_idx] = non_empty
+    
+    # 保存缓存
+    if use_cache:
+        result = (optimized_lookup, all_k_sets, all_j_combinations)
+        save_coverage_cache(result, cache_filename)
+    
+    return optimized_lookup, all_k_sets, all_j_combinations
+
+def fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combinations, s, strict_coverage=True, min_cover=1):
+    """使用优化的查找表计算适应度"""
+    total_coverage_quality = 0
+    covered_j_count = 0
+    
+    # 将solution中的k集合转换为索引
+    solution_indices = [all_k_sets.index(k_set) for k_set in solution]
+    
+    # 预计算每个j组合被覆盖的s子集
+    j_covered_s_sets = {}
+    
+    # 使用向量化操作加速计算
+    for j_idx in range(len(all_j_combinations)):
+        covered_s = set()
+        # 只考虑有覆盖关系的k集合
+        for k_idx in solution_indices:
+            if k_idx in coverage_lookup and j_idx in coverage_lookup[k_idx]:
+                covered_s.update(coverage_lookup[k_idx][j_idx])
+        
+        j_covered_s_sets[j_idx] = covered_s
+    
+    # 计算覆盖质量
+    for j_idx, j_comb in enumerate(all_j_combinations):
+        covered_s = j_covered_s_sets[j_idx]
+        s_combinations = list(combinations(j_comb, s))
+        
+        if strict_coverage:
+            # 严格覆盖模式
+            if len(covered_s) == len(s_combinations):
+                covered_j_count += 1
+                total_coverage_quality += 1
+        else:
+            # 宽松覆盖模式
+            s_covered = len(covered_s)
+            if s_covered >= min_cover:
+                covered_j_count += 1
+                # 增加对超额覆盖的奖励，但降低权重
+                extra_coverage = (s_covered - min_cover) / len(s_combinations)
+                total_coverage_quality += 1 + extra_coverage * 0.1
+            else:
+                # 对接近目标的解给予部分奖励
+                coverage_ratio = s_covered / min_cover
+                total_coverage_quality += coverage_ratio * 0.5
+    
+    # 计算基础适应度
+    coverage_score = total_coverage_quality / len(all_j_combinations)
+    
+    # 增加对解数量的惩罚
+    size_penalty = len(solution) ** 1.5 * 0.1
+    
+    # 对于宽松覆盖模式，增加额外的覆盖质量奖励
+    if not strict_coverage:
+        coverage_bonus = (covered_j_count / len(all_j_combinations)) * 0.3
+    else:
+        coverage_bonus = 0
+    
+    return coverage_score * 100 - size_penalty + coverage_bonus
+
+def generate_initial_solution_ga(n, k, j, s, population_size=50, generations=100, use_cache=True):
+    """使用遗传算法生成初始解，支持缓存"""
     # 使用GA_version_2中的遗传算法
     solution = genetic_algorithm(n, k, j, s, 
                                population_size=population_size,
@@ -122,7 +286,8 @@ def generate_initial_solution_ga(n, k, j, s, population_size=50, generations=100
                                base_crossover_rate=0.9,
                                elitism=True,
                                strict_coverage=False,
-                               min_cover=1)
+                               min_cover=1,
+                               use_cache=use_cache)
     
     # 检查解的覆盖情况
     satisfies = satisfies_condition(solution, n, k, j, s, strict_coverage=False, min_cover=1)
@@ -457,94 +622,18 @@ def get_dynamic_crossover_rate(generation, max_generations, base_rate=0.9):
     # 前期保持较高的交叉率，随着代数增加而逐渐降低
     return base_rate * (1 - generation / max_generations * 0.5)
 
-def precompute_coverage_relations(n, k, j, s):
-    """预计算k集合和j组合的覆盖关系"""
-    # 生成所有k集合
-    all_k_sets = list(combinations(range(n), k))
-    # 生成所有j组合
-    all_j_combinations = list(combinations(range(n), j))
-    
-    # 创建查找表
-    coverage_lookup = {}
-    for k_idx, k_set in enumerate(all_k_sets):
-        k_set = set(k_set)
-        coverage_lookup[k_idx] = {}
-        for j_idx, j_comb in enumerate(all_j_combinations):
-            j_set = set(j_comb)
-            # 计算该k集合覆盖的s子集
-            s_combinations = list(combinations(j_comb, s))
-            covered_s = set()
-            for s_comb in s_combinations:
-                if set(s_comb).issubset(k_set):
-                    covered_s.add(tuple(sorted(s_comb)))
-            coverage_lookup[k_idx][j_idx] = covered_s
-    
-    return coverage_lookup, all_k_sets, all_j_combinations
-
-def fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combinations, s, strict_coverage=True, min_cover=1):
-    """使用预计算的查找表计算适应度"""
-    total_coverage_quality = 0
-    covered_j_count = 0
-    
-    # 将solution中的k集合转换为索引
-    solution_indices = [all_k_sets.index(k_set) for k_set in solution]
-    
-    for j_idx in range(len(all_j_combinations)):
-        if strict_coverage:
-            # 严格覆盖模式
-            all_covered = True
-            covered_s = set()
-            for k_idx in solution_indices:
-                covered_s.update(coverage_lookup[k_idx][j_idx])
-            
-            s_combinations = list(combinations(all_j_combinations[j_idx], s))
-            if len(covered_s) == len(s_combinations):
-                covered_j_count += 1
-                total_coverage_quality += 1
-        else:
-            # 宽松覆盖模式
-            covered_s = set()
-            for k_idx in solution_indices:
-                covered_s.update(coverage_lookup[k_idx][j_idx])
-            
-            s_covered = len(covered_s)
-            if s_covered >= min_cover:
-                covered_j_count += 1
-                # 增加对超额覆盖的奖励，但降低权重
-                s_combinations = list(combinations(all_j_combinations[j_idx], s))
-                extra_coverage = (s_covered - min_cover) / len(s_combinations)
-                total_coverage_quality += 1 + extra_coverage * 0.1
-            else:
-                # 对接近目标的解给予部分奖励
-                coverage_ratio = s_covered / min_cover
-                total_coverage_quality += coverage_ratio * 0.5
-    
-    # 计算基础适应度
-    coverage_score = total_coverage_quality / len(all_j_combinations)
-    
-    # 增加对解数量的惩罚
-    size_penalty = len(solution) ** 1.5 * 0.1
-    
-    # 对于宽松覆盖模式，增加额外的覆盖质量奖励
-    if not strict_coverage:
-        coverage_bonus = (covered_j_count / len(all_j_combinations)) * 0.3
-    else:
-        coverage_bonus = 0
-    
-    return coverage_score * 100 - size_penalty + coverage_bonus
-
-def genetic_algorithm(n, k, j, s, population_size=100, generations=100, base_mutation_rate=0.1, base_crossover_rate=0.9, elitism=True, strict_coverage=True, min_cover=1):
-    """使用预计算的遗传算法求解集合覆盖问题"""
+def genetic_algorithm(n, k, j, s, population_size=100, generations=100, base_mutation_rate=0.1, base_crossover_rate=0.9, elitism=True, strict_coverage=True, min_cover=1, use_cache=True):
+    """使用预计算的遗传算法求解集合覆盖问题，支持缓存"""
     total_start_time = time.time()
     
     # Define min_groups and max_groups
     min_groups = max(3, j)  # Minimum groups should be at least j or 3
     max_groups = n * 2      # Maximum groups can be twice the number of elements
     
-    # 预计算覆盖关系
+    # 预计算覆盖关系，支持缓存
     precompute_start_time = time.time()
     print("正在预计算覆盖关系...")
-    coverage_lookup, all_k_sets, all_j_combinations = precompute_coverage_relations(n, k, j, s)
+    coverage_lookup, all_k_sets, all_j_combinations = precompute_coverage_relations(n, k, j, s, use_cache)
     precompute_time = time.time() - precompute_start_time
     print(f"预计算完成，用时: {precompute_time:.2f}秒")
     
@@ -613,32 +702,15 @@ def tournament_selection(population, fitness_scores, num_selected):
         selected.append(winner[1])
     return selected
 
-def main(only_count=False, show_sets=False):
+def main(only_count=False, show_sets=False, use_cache=True):
     # 测试用例列表
     test_cases = [
-        # 测试用例1: n=7, k=6, j=5, s=5
-        {"n": 7, "k": 6, "j": 5, "s": 5, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例2: n=8, k=6, j=4, s=4
-        {"n": 8, "k": 6, "j": 4, "s": 4, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例3: n=9, k=6, j=4, s=4
-        {"n": 9, "k": 6, "j": 4, "s": 4, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例4: n=8, k=6, j=6, s=5
-        {"n": 8, "k": 6, "j": 6, "s": 5, "strict_coverage": False, "min_cover": 1},
-        
-        # 测试用例5: n=8, k=6, j=6, s=5
-        {"n": 8, "k": 6, "j": 6, "s": 5, "strict_coverage": False, "min_cover": 4},
-        
-        # 测试用例6: n=9, k=6, j=5, s=4
-        {"n": 9, "k": 6, "j": 5, "s": 4, "strict_coverage": False, "min_cover": 1},
-        
         # 测试用例7: n=10, k=6, j=6, s=4
         {"n": 10, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1},
         
         # 测试用例8: n=12, k=6, j=6, s=4
-        {"n": 12, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1}
+        {"n": 12, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1},
+        
     ]
     
     # 运行每个测试用例
@@ -650,14 +722,21 @@ def main(only_count=False, show_sets=False):
         if not case['strict_coverage']:
             print(f"最小覆盖数: {case['min_cover']}")
         
+        # 测量性能 - 预计算时间
+        start_time = time.time()
+        
         # 使用遗传算法生成初始解
         print("使用遗传算法生成初始解...")
         initial_solution = generate_initial_solution_ga(
             case['n'], case['k'], case['j'], case['s'],
-            population_size=50,  # 减少种群大小
-            generations=100  # 减少迭代次数
+            population_size=100,  # 减少种群大小
+            generations=100,     # 减少迭代次数
+            use_cache=use_cache  # 使用缓存
         )
+        
+        elapsed_time = time.time() - start_time
         print(f"遗传算法找到的初始解包含 {len(initial_solution)} 个集合")
+        print(f"总运行时间: {elapsed_time:.2f}秒")
         
         # 如果n大于8，直接使用遗传算法结果
         if case['n'] > 8:
@@ -709,4 +788,4 @@ def main(only_count=False, show_sets=False):
                 print("求解器异常终止")
 
 if __name__ == "__main__":
-    main(only_count=False, show_sets=True)
+    main(only_count=False, show_sets=True, use_cache=True)

@@ -50,16 +50,39 @@ def verify_coverage(solution, n, k, j, s, strict_coverage=False, min_cover=1):
 def test_verify():
     """测试验证函数"""
     solution = [
-        (0,5,6,8,9,11),    # A,F,G,I,J,L
-        (1,4,7,8,9,12),    # B,E,H,I,J,M
-        (1,5,9,10,11,12),  # B,F,J,K,L,M
-        (2,6,7,8,9,10),    # C,G,H,I,J,K
-        (0,5,6,7,11,12),   # A,F,G,H,L,M
-        (0,2,3,4,5,11)     # A,C,D,E,F,L
+        (1,2,6,10,13,14),    # B,C,G,K,N,O
+        (1,2,6,7,9,14),      # B,C,G,H,J,O
+        (0,6,8,10,11,12),    # A,G,I,K,L,M
+        (0,3,7,9,10,11),     # A,D,H,J,K,L
+        (1,2,11,12,13,14),   # B,C,L,M,N,O
+        (1,2,3,7,8,11),      # B,C,D,H,I,L
+        (1,3,5,6,7,10),      # B,D,F,G,H,K
+        (0,4,9,10,12,14),    # A,E,J,K,M,O
+        (2,3,10,11,12,14),   # C,D,K,L,M,O
+        (0,2,3,4,9,13),      # A,C,D,E,J,N
+        (4,5,7,8,9,13),      # E,F,H,I,J,N
+        (0,1,3,8,10,13),     # A,B,D,I,K,N
+        (0,3,5,9,12,14),     # A,D,F,J,M,O
+        (0,1,2,5,9,10),      # A,B,C,F,J,K
+        (0,3,5,6,11,13),     # A,D,F,G,L,N
+        (1,2,3,6,8,14),      # B,C,D,G,I,O
+        (0,4,8,9,12,13),     # A,E,I,J,M,N
+        (3,5,7,10,12,13),    # D,F,H,K,M,N
+        (1,2,3,4,7,13),      # B,C,D,E,H,N
+        (0,4,6,9,10,11),     # A,E,G,J,K,L
+        (2,5,6,8,13,14),     # C,F,G,I,N,O
+        (1,2,4,5,9,11),      # B,C,E,F,J,L
+        (1,3,4,5,8,14),      # B,D,E,F,I,O
+        (1,2,7,8,10,12),     # B,C,H,I,K,M
+        (0,6,8,9,11,13),     # A,G,I,J,L,N
+        (0,4,5,7,11,14),     # A,E,F,H,L,O
+        (1,2,5,6,9,12),      # B,C,F,G,J,M
+        (0,3,4,6,7,12),      # A,D,E,G,H,M
+        (7,8,10,11,13,14)    # H,I,K,L,N,O
     ]
     
     # Test parameters
-    n, k, j, s = 13, 6, 6, 4  # 13 elements (A-M), 6 per group
+    n, k, j, s = 15, 6, 6, 4  # 15 elements (A-O), 6 per group
     result = verify_coverage(solution, n, k, j, s, strict_coverage=False, min_cover=1)
     
     return result

@@ -616,29 +616,8 @@ def tournament_selection(population, fitness_scores, num_selected):
 def main(only_count=False, show_sets=False):
     # 测试用例列表
     test_cases = [
-        # 测试用例1: n=7, k=6, j=5, s=5
-        {"n": 7, "k": 6, "j": 5, "s": 5, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例2: n=8, k=6, j=4, s=4
-        {"n": 8, "k": 6, "j": 4, "s": 4, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例3: n=9, k=6, j=4, s=4
-        {"n": 9, "k": 6, "j": 4, "s": 4, "strict_coverage": True, "min_cover": 1},
-        
-        # 测试用例4: n=8, k=6, j=6, s=5
-        {"n": 8, "k": 6, "j": 6, "s": 5, "strict_coverage": False, "min_cover": 1},
-        
-        # 测试用例5: n=8, k=6, j=6, s=5
-        {"n": 8, "k": 6, "j": 6, "s": 5, "strict_coverage": False, "min_cover": 4},
-        
-        # 测试用例6: n=9, k=6, j=5, s=4
-        {"n": 9, "k": 6, "j": 5, "s": 4, "strict_coverage": False, "min_cover": 1},
-        
-        # 测试用例7: n=10, k=6, j=6, s=4
-        {"n": 10, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1},
-        
         # 测试用例8: n=12, k=6, j=6, s=4
-        {"n": 12, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1}
+        {"n": 14, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1}
     ]
     
     # 运行每个测试用例
