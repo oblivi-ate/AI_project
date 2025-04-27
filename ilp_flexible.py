@@ -32,56 +32,57 @@ def calculate_overlap(set1, set2):
     """计算两个集合的重叠度"""
     return len(set1.intersection(set2))
 
-def construct_ilp_problem(n, k, j, s, strict_coverage=True, min_cover=1):
+def construct_ilp_problem(n, k, j, s, m, strict_coverage=True, min_cover=1):
     """
     构建ILP问题
-    
+
     参数:
     n: 样本数量
     k: k元素子集大小
     j: j元素子集大小
     s: s元素子集大小
+    m: 整数范围上限，从1-m中选择n个整数作为样本
     strict_coverage: 是否使用严格覆盖模式
     min_cover: 宽松覆盖模式下，每个j元素子集至少需要被覆盖的s元素子集数量
     """
-    # 生成样本集合
-    samples = set([chr(ord('A') + i) for i in range(n)])
+    # 生成样本集合（从1-m的整数中选择n个整数）
+    samples = sorted(random.sample(range(1, m+1), n))
     print(f"生成的样本集合: {samples}")
-    
+
     # 生成k元素子集
     k_subsets = [set(comb) for comb in combinations(samples, k)]
     print(f"生成的{k}元素子集数量: {len(k_subsets)}")
-    
+
     # 预处理：移除被支配的子集
     k_subsets = check_dominated(k_subsets)
     print(f"预处理后的{k}元素子集数量: {len(k_subsets)}")
-    
+
     # 生成j元素子集
     j_subsets = [set(comb) for comb in combinations(samples, j)]
     print(f"生成的{j}元素子集数量: {len(j_subsets)}")
-    
+
     # 生成s元素子集
     s_subsets = []
     for j_subset in j_subsets:
         s_subsets.append([set(comb) for comb in combinations(j_subset, s)])
     print(f"每个{j}元素子集包含的{s}元素子集数量: {len(s_subsets[0])}")
-    
+
     # 创建求解器
     solver = pywraplp.Solver.CreateSolver('SCIP')
     if not solver:
         raise Exception('SCIP求解器不可用')
-    
+
     # 创建变量
     x = {}
     for i in range(len(k_subsets)):
         x[i] = solver.IntVar(0, 1, f'x_{i}')
-    
+
     # 目标函数：最小化选择的集合数量
     objective = solver.Objective()
     for i in range(len(k_subsets)):
         objective.SetCoefficient(x[i], 1)
     objective.SetMinimization()
-    
+
     if strict_coverage:
         # 严格覆盖模式：每个j元素子集的所有s元素子集都必须被至少一个k元素子集覆盖
         if min_cover > 1:
@@ -106,13 +107,13 @@ def construct_ilp_problem(n, k, j, s, strict_coverage=True, min_cover=1):
                         constraint.SetCoefficient(x[i], 1)
                     constraint.SetCoefficient(y, -1)
                     s_covered.append(y)
-            
+
             if s_covered:
                 constraint = solver.Constraint(min_cover, solver.infinity())
                 for y in s_covered:
                     constraint.SetCoefficient(y, 1)
-    
-    return solver, x, k_subsets, j_subsets, s_subsets
+
+    return solver, x, k_subsets, j_subsets, s_subsets, samples
 
 def get_cache_filename(n, k, j, s):
     """根据参数生成缓存文件名"""
@@ -137,7 +138,7 @@ def load_coverage_cache(filename):
         return cache_data
     return None
 
-def precompute_coverage_relations(n, k, j, s, use_cache=True):
+def precompute_coverage_relations(n, k, j, s, m=None, use_cache=True):
     """预计算k集合和j组合的覆盖关系，使用优化的矩阵运算和数据结构"""
     # 检查缓存
     cache_filename = get_cache_filename(n, k, j, s)
@@ -145,64 +146,88 @@ def precompute_coverage_relations(n, k, j, s, use_cache=True):
         cache_data = load_coverage_cache(cache_filename)
         if cache_data:
             return cache_data
-    
+
     print(f"开始预计算覆盖关系 (n={n}, k={k}, j={j}, s={s})...")
-    
-    # 使用numpy高效生成所有组合
-    all_k_sets = list(combinations(range(n), k))
-    all_j_combinations = list(combinations(range(n), j))
-    
-    # 使用位集合表示每个组合以提高集合运算效率
-    k_sets_bits = np.zeros((len(all_k_sets), n), dtype=bool)
-    for i, k_set in enumerate(all_k_sets):
-        k_sets_bits[i, list(k_set)] = True
-    
-    j_sets_bits = np.zeros((len(all_j_combinations), n), dtype=bool)
-    for i, j_comb in enumerate(all_j_combinations):
-        j_sets_bits[i, list(j_comb)] = True
-    
+
+    if m is not None:
+        # 如果提供了m，则从1-m中随机选择n个数作为样本
+        import random
+        samples = sorted(random.sample(range(1, m+1), n))
+        print(f"使用随机样本: {samples}")
+        
+        # 生成所有组合基于随机样本
+        all_k_sets = list(combinations(samples, k))
+        all_j_combinations = list(combinations(samples, j))
+        
+        # 创建样本到索引的映射
+        sample_to_idx = {v: i for i, v in enumerate(samples)}
+        
+        # 创建位集合表示
+        k_sets_bits = np.zeros((len(all_k_sets), n), dtype=bool)
+        for i, k_set in enumerate(all_k_sets):
+            for elem in k_set:
+                k_sets_bits[i, sample_to_idx[elem]] = True
+        
+        j_sets_bits = np.zeros((len(all_j_combinations), n), dtype=bool)
+        for i, j_comb in enumerate(all_j_combinations):
+            for elem in j_comb:
+                j_sets_bits[i, sample_to_idx[elem]] = True
+    else:
+        # 使用默认的索引范围
+        all_k_sets = list(combinations(range(n), k))
+        all_j_combinations = list(combinations(range(n), j))
+        
+        # 使用位集合表示每个组合以提高集合运算效率
+        k_sets_bits = np.zeros((len(all_k_sets), n), dtype=bool)
+        for i, k_set in enumerate(all_k_sets):
+            k_sets_bits[i, list(k_set)] = True
+        
+        j_sets_bits = np.zeros((len(all_j_combinations), n), dtype=bool)
+        for i, j_comb in enumerate(all_j_combinations):
+            j_sets_bits[i, list(j_comb)] = True
+
     # 使用矩阵运算计算交集大小
     # 为避免大规模矩阵计算导致内存问题，使用分块处理
     block_size = 1000  # 根据内存情况调整
-    
+
     # 创建高效的数据结构存储结果
     coverage_lookup = {}
-    
+
     for k_idx in range(len(all_k_sets)):
         coverage_lookup[k_idx] = {}
         k_bit = k_sets_bits[k_idx]
-        
+
         # 分块处理j组合
         for j_block_start in range(0, len(all_j_combinations), block_size):
             j_block_end = min(j_block_start + block_size, len(all_j_combinations))
             j_block = j_sets_bits[j_block_start:j_block_end]
-            
+
             # 使用矩阵运算计算交集
             # k_bit 是一个长度为n的布尔数组，j_block是多个j组合的布尔数组
             intersections = np.logical_and(k_bit, j_block).sum(axis=1)
-            
+
             # 处理每个j组合
             for j_offset, intersection_size in enumerate(intersections):
                 j_idx = j_block_start + j_offset
                 j_comb = all_j_combinations[j_idx]
-                
+
                 # 只有当交集大小满足条件时才计算s子集
                 if intersection_size >= s:
                     # 计算该k集合覆盖的s子集
                     # 使用迭代器避免一次性生成所有组合
                     s_combs = combinations(j_comb, s)
                     covered_s = set()
-                    
+
                     # 只考虑那些可能被k_set覆盖的s组合
                     for s_comb in s_combs:
                         # 使用位运算优化子集判断
                         if all(item in all_k_sets[k_idx] for item in s_comb):
                             covered_s.add(tuple(sorted(s_comb)))
-                    
+
                     coverage_lookup[k_idx][j_idx] = covered_s
                 else:
                     coverage_lookup[k_idx][j_idx] = set()  # 没有覆盖任何s子集
-    
+
     # 使用更高效的数据结构优化
     # 转换为嵌套字典，只保存有覆盖的关系，减少内存使用
     optimized_lookup = {}
@@ -210,12 +235,12 @@ def precompute_coverage_relations(n, k, j, s, use_cache=True):
         non_empty = {j_idx: s_sets for j_idx, s_sets in coverage_lookup[k_idx].items() if s_sets}
         if non_empty:
             optimized_lookup[k_idx] = non_empty
-    
+
     # 保存缓存
     if use_cache:
         result = (optimized_lookup, all_k_sets, all_j_combinations)
         save_coverage_cache(result, cache_filename)
-    
+
     return optimized_lookup, all_k_sets, all_j_combinations
 
 def fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combinations, s, strict_coverage=True, min_cover=1):
@@ -276,28 +301,49 @@ def fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combination
     
     return coverage_score * 100 - size_penalty + coverage_bonus
 
-def generate_initial_solution_ga(n, k, j, s, population_size=50, generations=100, use_cache=True):
+def generate_initial_solution_ga(n, k, j, s, m, population_size=50, generations=100, use_cache=True):
     """使用遗传算法生成初始解，支持缓存"""
-    # 使用GA_version_2中的遗传算法
-    solution = genetic_algorithm(n, k, j, s, 
-                               population_size=population_size,
-                               generations=generations,
-                               base_mutation_rate=0.1,
-                               base_crossover_rate=0.9,
-                               elitism=True,
-                               strict_coverage=False,
-                               min_cover=1,
-                               use_cache=use_cache)
+    # 生成样本集合（从1-m的整数中选择n个整数）
+    import random
+    samples = sorted(random.sample(range(1, m+1), n))
+    print(f"遗传算法使用的样本集合: {samples}")
     
+    # 使用GA_version_2中的遗传算法
+    # 由于遗传算法使用的是索引0到n-1，我们需要将样本映射到这些索引
+    sample_to_index = {num: i for i, num in enumerate(samples)}
+    index_to_sample = {i: num for i, num in enumerate(samples)}
+    
+    # 使用索引运行遗传算法
+    solution = genetic_algorithm(n, k, j, s, m,
+                                population_size=population_size,
+                                generations=generations,
+                                base_mutation_rate=0.1,
+                                base_crossover_rate=0.9,
+                                elitism=True,
+                                strict_coverage=False,
+                                min_cover=1,
+                                use_cache=use_cache)
+
     # 检查解的覆盖情况
     satisfies = satisfies_condition(solution, n, k, j, s, strict_coverage=False, min_cover=1)
-    
+
     # 计算并输出最终解的适应度
     final_fitness = fitness(solution, n, k, j, s, strict_coverage=False, min_cover=1)
     print(f"遗传算法找到的解的适应度: {final_fitness:.2f}")
     print(f"覆盖状态: {'完全覆盖' if satisfies else '部分覆盖'}")
+
+    # 将索引解转换为实际样本值的解
+    solution_with_samples = []
+    for subset in solution:
+        subset_samples = [index_to_sample[idx] for idx in subset]
+        solution_with_samples.append(set(subset_samples))
     
-    return solution
+    # 输出结果
+    print("\n遗传算法找到的集合:")
+    for i, subset in enumerate(solution_with_samples, 1):
+        print(f"{i}. {','.join(map(str, sorted(subset)))}")
+
+    return solution_with_samples, samples
 
 def generate_combinations(items, k):
     return list(combinations(items, k))
@@ -622,7 +668,7 @@ def get_dynamic_crossover_rate(generation, max_generations, base_rate=0.9):
     # 前期保持较高的交叉率，随着代数增加而逐渐降低
     return base_rate * (1 - generation / max_generations * 0.5)
 
-def genetic_algorithm(n, k, j, s, population_size=100, generations=100, base_mutation_rate=0.1, base_crossover_rate=0.9, elitism=True, strict_coverage=True, min_cover=1, use_cache=True):
+def genetic_algorithm(n, k, j, s, m, population_size=100, generations=100, base_mutation_rate=0.1, base_crossover_rate=0.9, elitism=True, strict_coverage=True, min_cover=1, use_cache=True):
     """使用预计算的遗传算法求解集合覆盖问题，支持缓存"""
     total_start_time = time.time()
     
@@ -633,7 +679,7 @@ def genetic_algorithm(n, k, j, s, population_size=100, generations=100, base_mut
     # 预计算覆盖关系，支持缓存
     precompute_start_time = time.time()
     print("正在预计算覆盖关系...")
-    coverage_lookup, all_k_sets, all_j_combinations = precompute_coverage_relations(n, k, j, s, use_cache)
+    coverage_lookup, all_k_sets, all_j_combinations = precompute_coverage_relations(n, k, j, s, m, use_cache)
     precompute_time = time.time() - precompute_start_time
     print(f"预计算完成，用时: {precompute_time:.2f}秒")
     
@@ -663,6 +709,7 @@ def genetic_algorithm(n, k, j, s, population_size=100, generations=100, base_mut
         fitness_start_time = time.time()
         fitness_scores = [(fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combinations, s, strict_coverage, min_cover), solution) 
                          for solution in population]
+        fitness_scores.sort(reverse=True)
         fitness_scores.sort(reverse=True)
         fitness_time = time.time() - fitness_start_time
         
@@ -702,22 +749,51 @@ def tournament_selection(population, fitness_scores, num_selected):
         selected.append(winner[1])
     return selected
 
+def create_letter_to_number_mapping(n, m):
+    """
+    创建字母到随机数的映射关系
+    
+    参数:
+    n: 需要多少个字母映射
+    m: 随机数的范围上限，从1-m中选择n个不同的随机数
+    
+    返回:
+    letter_to_num: 字母到数字的映射字典
+    num_to_letter: 数字到字母的映射字典
+    """
+    # 从1-m中随机选择n个不同的数字
+    random_numbers = sorted(random.sample(range(1, m+1), n))
+    
+    # 创建映射
+    letter_to_num = {}
+    num_to_letter = {}
+    for i in range(n):
+        letter = chr(ord('A') + i)
+        num = random_numbers[i]
+        letter_to_num[letter] = num
+        num_to_letter[num] = letter
+    
+    print(f"生成的字母到数字映射:")
+    for letter, num in sorted(letter_to_num.items()):
+        print(f"{letter} -> {num}")
+    
+    return letter_to_num, num_to_letter
+
 def main(only_count=False, show_sets=False, use_cache=True):
     # 测试用例列表
     test_cases = [
-        # 测试用例7: n=10, k=6, j=6, s=4
-        {"n": 10, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1},
+        # 测试用例7: n=7, k=6, j=5, s=5
+        {"n": 7, "k": 6, "j": 5, "s": 5, "m": 45, "strict_coverage": False, "min_cover": 1},
         
         # 测试用例8: n=12, k=6, j=6, s=4
-        {"n": 12, "k": 6, "j": 6, "s": 4, "strict_coverage": False, "min_cover": 1},
-        
+        {"n": 12, "k": 6, "j": 6, "s": 4, "m": 24, "strict_coverage": False, "min_cover": 1},
     ]
     
     # 运行每个测试用例
     for i, case in enumerate(test_cases, 1):
         print(f"\n{'='*50}")
         print(f"测试用例 {i}:")
-        print(f"参数: n={case['n']}, k={case['k']}, j={case['j']}, s={case['s']}")
+        print(f"参数: n={case['n']}, k={case['k']}, j={case['j']}, s={case['s']}, m={case['m']}")
         print(f"覆盖模式: {'严格覆盖' if case['strict_coverage'] else '宽松覆盖'}")
         if not case['strict_coverage']:
             print(f"最小覆盖数: {case['min_cover']}")
@@ -727,8 +803,8 @@ def main(only_count=False, show_sets=False, use_cache=True):
         
         # 使用遗传算法生成初始解
         print("使用遗传算法生成初始解...")
-        initial_solution = generate_initial_solution_ga(
-            case['n'], case['k'], case['j'], case['s'],
+        initial_solution, samples = generate_initial_solution_ga(
+            case['n'], case['k'], case['j'], case['s'], case['m'],
             population_size=50,  # 减少种群大小
             generations=100,     # 减少迭代次数
             use_cache=use_cache  # 使用缓存
@@ -741,17 +817,12 @@ def main(only_count=False, show_sets=False, use_cache=True):
         # 如果n大于8，直接使用遗传算法结果
         if case['n'] > 8:
             print(f"\n由于n={case['n']} > 8，跳过ILP求解，直接使用遗传算法结果")
-            if show_sets:
-                print("\n遗传算法找到的集合:")
-                for i, subset in enumerate(initial_solution, 1):
-                    # 将数字转换为字母表示
-                    subset_letters = [chr(ord('A') + item) for item in subset]
-                    print(f"{i}. {','.join(sorted(subset_letters))}")
+            # 结果已经在generate_initial_solution_ga函数中输出
             continue
         
         # 构建ILP问题
-        solver, x, k_subsets, j_subsets, s_subsets = construct_ilp_problem(
-            case['n'], case['k'], case['j'], case['s'],
+        solver, x, k_subsets, j_subsets, s_subsets, ilp_samples = construct_ilp_problem(
+            case['n'], case['k'], case['j'], case['s'], case['m'],
             case['strict_coverage'], case['min_cover']
         )
         
@@ -779,7 +850,7 @@ def main(only_count=False, show_sets=False, use_cache=True):
                 
                 print("选择的集合:")
                 for i, subset in enumerate(selected_subsets, 1):
-                    print(f"{i}. {','.join(sorted(subset))}")
+                    print(f"{i}. {','.join(map(str, sorted(subset)))}")
         else:
             print(f"求解状态: {status}")
             if status == pywraplp.Solver.INFEASIBLE:
