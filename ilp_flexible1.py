@@ -729,7 +729,7 @@ def main(only_count=False, show_sets=False, use_cache=True):
         print("使用遗传算法生成初始解...")
         initial_solution = generate_initial_solution_ga(
             case['n'], case['k'], case['j'], case['s'],
-            population_size=100,  # 减少种群大小
+            population_size=50,  # 减少种群大小
             generations=100,     # 减少迭代次数
             use_cache=use_cache  # 使用缓存
         )
