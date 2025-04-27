@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+  <title>Optimal Samples Selection System</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body class="bg-gray-100 font-sans flex flex-col items-center justify-center min-h-screen">
+  <h1 class="text-3xl font-bold mb-4">An Optimal Samples Selection System</h1>
+  <p class="text-gray-600 mb-6">Please input the following parameters</p>
+  <form class="bg-white p-8 rounded shadow-md w-full max-w-3xl">
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="flex items-center">
+        <label for="m" class="block text-gray-700 text-sm font-bold mr-2">m</label>
+        <input type="number" id="m" min="45" max="54"
+          class="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <span class="text-gray-500 text-sm ml-2">45&le;m&le;54</span>
+      </div>
+      <div class="flex items-center">
+        <label for="n" class="block text-gray-700 text-sm font-bold mr-2">n</label>
+        <input type="number" id="n" min="7" max="25"
+          class="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <span class="text-gray-500 text-sm ml-2">7&le;n&le;25</span>
+      </div>
+      <div class="flex items-center">
+        <label for="k" class="block text-gray-700 text-sm font-bold mr-2">k</label>
+        <input type="number" id="k" min="4" max="7"
+          class="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <span class="text-gray-500 text-sm ml-2">4&le;k&le;7</span>
+      </div>
+      <div class="flex items-center">
+        <label for="j" class="block text-gray-700 text-sm font-bold mr-2">j</label>
+        <input type="number" id="j"
+          class="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <span class="text-gray-500 text-sm ml-2">s&le;j&le;k</span>
+      </div>
+      <div class="flex items-center">
+        <label for="s" class="block text-gray-700 text-sm font-bold mr-2">s</label>
+        <input type="number" id="s" min="3" max="7"
+          class="shadow appearance-none border rounded w-20 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <span class="text-gray-500 text-sm ml-2">3&le;s&le;7</span>
+      </div>
+    </div>
+    <div class="flex items-center justify-center mb-6">
+      <div class="flex items-center mr-4">
+        <input type="radio" id="randomN" name="nOption" class="mr-2">
+        <label for="randomN" class="text-gray-700">Random n</label>
+      </div>
+      <div class = mb-4></div>
+      <div class="flex items-center">
+        <input type="radio" id="inputN" name="nOption" class="mr-2">
+        <label for="inputN" class="text-gray-700">Input n</label>
+      </div>
+    </div>
+    <div class="flex justify-between mb-6">
+      <button id="storeDB"
+        class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+        <i class="fa-solid fa-database mr-2"></i> Store DB
+      </button>
+      <button id="execute"
+        class="bg-lime-500 hover:bg-lime-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+        <i class="fa-solid fa-play mr-2"></i> Execute
+      </button>
+      <button id="deleteBtn"
+        class="bg-rose-500 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+        <i class="fa-solid fa-trash mr-2"></i> Delete
+      </button>
+    </div>
+    <div class="flex justify-between mb-6">
+      <div class="w-1/2">
+        <h3 class="text-gray-700 text-sm font-bold mb-2">Value Input</h3>
+        <textarea id="valueInput" rows="5" cols="30"
+          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+      </div>
+      <div class="w-1/2">
+        <h3 class="text-gray-700 text-sm font-bold mb-2">Results</h3>
+        <textarea id="results" rows="5" cols="30"
+          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end">
+      <button id="print"
+        class="bg-amber-500 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+        <i class="fa-solid fa-print mr-2"></i> Print
+      </button>
+      <button id="next"
+        class="bg-fuchsia-500 hover:bg-fuchsia-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-4">
+        <i class="fa-solid fa-arrow-right mr-2"></i> Next
+      </button>
+    </div>
+    <div class="mb-6">
+      <h3 class="text-gray-700 text-sm font-bold mb-2">User Input</h3>
+      <div class="flex flex-wrap gap-2">
+
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput1" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" >
+          <span class="text-gray-500 text-xs mt-1">1</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput2" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">2</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput3" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">3</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput4" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">4</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput5" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" >
+          <span class="text-gray-500 text-xs mt-1">5</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput6" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">6</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput7" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">7</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput8" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">8</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput9" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">9</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput10" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">10</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput11" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">11</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput12" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">12</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput13" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" >
+          <span class="text-gray-500 text-xs mt-1">13</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput14" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">14</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput15" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">15</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput16" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" >
+          <span class="text-gray-500 text-xs mt-1">16</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput17" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">17</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput18" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">18</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput19" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">19</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput20" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">20</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput21" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">21</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput22" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">22</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput23" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">23</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput24" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">24</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <input type="text" id="userInput25" class="user-input shadow appearance-none border rounded w-8 py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <span class="text-gray-500 text-xs mt-1">25</span>
+        </div>
+      </div>
+    </div>
+  </form>
+  <script src="/static/js/script.js"></script>
+</body>
+
+</html>    

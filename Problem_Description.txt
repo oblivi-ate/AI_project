@@ -91,7 +91,7 @@ samples has at least ONE s=4 samples group from ALL j=6 samples groups of n=10 s
 E.g. 8, when m=45, n=12 we randomly choose 12 samples, A,B,C,D,E,F,G,H,I,J,K,L and k=6, j=6, s=4,
 we obtain the following minimum 6 groups of k=6 samples, which guarantees at least ONE group of k=6
 samples has at least ONE s=4 samples group from ALL j=6 samples groups of n=12 samples. (i.e., nCj=12C6
-and jCs=6C4).
+and jCs=6C4).                       
 1.A,B,D,G,K,L
 2.A,C,D,H,J,L
 3.A,D,E,F,I,L
