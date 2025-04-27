@@ -32,7 +32,23 @@ def calculate_overlap(set1, set2):
     """计算两个集合的重叠度"""
     return len(set1.intersection(set2))
 
-def construct_ilp_problem(n, k, j, s, m, strict_coverage=True, min_cover=1):
+def generate_random_samples(n, m):
+    """
+    生成随机样本集合
+    
+    参数:
+    n: 样本数量
+    m: 整数范围上限，从1-m中选择n个整数作为样本
+    
+    返回:
+    samples: 排序后的随机样本列表
+    """
+    import random
+    samples = sorted(random.sample(range(1, m+1), n))
+    print(f"生成的随机样本集合: {samples}")
+    return samples
+
+def construct_ilp_problem(n, k, j, s, m, strict_coverage=True, min_cover=1, provided_samples=None):
     """
     构建ILP问题
 
@@ -44,10 +60,15 @@ def construct_ilp_problem(n, k, j, s, m, strict_coverage=True, min_cover=1):
     m: 整数范围上限，从1-m中选择n个整数作为样本
     strict_coverage: 是否使用严格覆盖模式
     min_cover: 宽松覆盖模式下，每个j元素子集至少需要被覆盖的s元素子集数量
+    provided_samples: 可选，提供的样本集合，如果为None则随机生成
     """
-    # 生成样本集合（从1-m的整数中选择n个整数）
-    samples = sorted(random.sample(range(1, m+1), n))
-    print(f"生成的样本集合: {samples}")
+    # 使用提供的样本集合或生成新的样本集合
+    if provided_samples is not None:
+        samples = provided_samples
+        print(f"使用提供的样本集合: {samples}")
+    else:
+        # 生成样本集合（从1-m的整数中选择n个整数）
+        samples = generate_random_samples(n, m)
 
     # 生成k元素子集
     k_subsets = [set(comb) for comb in combinations(samples, k)]
@@ -301,12 +322,29 @@ def fitness_with_lookup(solution, coverage_lookup, all_k_sets, all_j_combination
     
     return coverage_score * 100 - size_penalty + coverage_bonus
 
-def generate_initial_solution_ga(n, k, j, s, m, population_size=50, generations=100, use_cache=True):
-    """使用遗传算法生成初始解，支持缓存"""
-    # 生成样本集合（从1-m的整数中选择n个整数）
-    import random
-    samples = sorted(random.sample(range(1, m+1), n))
-    print(f"遗传算法使用的样本集合: {samples}")
+def generate_initial_solution_ga(n, k, j, s, m, population_size=50, generations=100, use_cache=True, provided_samples=None):
+    """
+    使用遗传算法生成初始解，支持缓存
+    
+    参数:
+    n: 样本数量
+    k: k元素子集大小 
+    j: j元素子集大小
+    s: s元素子集大小
+    m: 整数范围上限
+    population_size: 种群大小
+    generations: 迭代代数
+    use_cache: 是否使用缓存
+    provided_samples: 可选，提供的样本集合，如果为None则随机生成
+    """
+    # 使用提供的样本集合或生成新的样本集合
+    if provided_samples is not None:
+        samples = provided_samples
+        print(f"遗传算法使用提供的样本集合: {samples}")
+    else:
+        # 生成样本集合（从1-m的整数中选择n个整数）
+        samples = generate_random_samples(n, m)
+        print(f"遗传算法使用的随机样本集合: {samples}")
     
     # 使用GA_version_2中的遗传算法
     # 由于遗传算法使用的是索引0到n-1，我们需要将样本映射到这些索引
@@ -779,7 +817,136 @@ def create_letter_to_number_mapping(n, m):
     
     return letter_to_num, num_to_letter
 
+def run_test_case(params):
+    """
+    运行单个测试用例，可以被app.py或其他接口调用
+    
+    参数:
+    params: 包含算法参数的字典，必须包含'n', 'k', 'j', 's', 'm', 'strict_coverage', 'min_cover'
+    
+    返回:
+    result_dict: 包含计算结果的字典，包括samples, ga_solution, ilp_solution等
+    """
+    n = params['n']
+    k = params['k']
+    j = params['j']
+    s = params['s']
+    m = params['m']
+    strict_coverage = params['strict_coverage']
+    min_cover = params['min_cover']
+    
+    print(f"\n{'='*50}")
+    print(f"测试用例:")
+    print(f"参数: n={n}, k={k}, j={j}, s={s}, m={m}")
+    print(f"覆盖模式: {'严格覆盖' if strict_coverage else '宽松覆盖'}")
+    if not strict_coverage:
+        print(f"最小覆盖数: {min_cover}")
+    
+    import time
+    start_time = time.time()
+    
+    # 首先生成随机样本集
+    print("生成随机样本集...")
+    samples = generate_random_samples(n, m)
+    
+    # 使用遗传算法生成初始解，传入相同的样本集
+    print("使用遗传算法生成初始解...")
+    initial_solution, _ = generate_initial_solution_ga(
+        n, k, j, s, m,
+        population_size=50,  # 减少种群大小
+        generations=100,     # 减少迭代次数
+        use_cache=True,      # 使用缓存
+        provided_samples=samples  # 使用相同的样本集
+    )
+    
+    elapsed_time = time.time() - start_time
+    print(f"遗传算法找到的初始解包含 {len(initial_solution)} 个集合")
+    print(f"总运行时间: {elapsed_time:.2f}秒")
+    
+    # 初始化结果字典
+    result_dict = {
+        'samples': samples,
+        'ga_solution': initial_solution,
+        'ilp_solution': None,
+        'execution_time': elapsed_time
+    }
+    
+    # 如果n大于8，直接使用遗传算法结果
+    if n > 8:
+        print(f"\n由于n={n} > 8，跳过ILP求解，直接使用遗传算法结果")
+        return result_dict
+    
+    # 构建ILP问题，传入相同的样本集
+    print("\n尝试使用ILP求解...")
+    try:
+        # 导入需要的模块
+        from ortools.linear_solver import pywraplp
+        
+        # 使用相同的样本集构建ILP问题
+        solver, x, k_subsets, j_subsets, s_subsets, _ = construct_ilp_problem(
+            n, k, j, s, m,
+            strict_coverage, min_cover,
+            provided_samples=samples  # 使用相同的样本集
+        )
+        
+        # 设置SCIP求解器参数以优化性能
+        solver.SetTimeLimit(300000)  # 5分钟时间限制
+        solver.SetNumThreads(0)      # 使用所有可用的CPU核心
+        
+        # 求解问题
+        print("开始求解...")
+        ilp_start_time = time.time()
+        status = solver.Solve()
+        ilp_elapsed_time = time.time() - ilp_start_time
+        result_dict['ilp_execution_time'] = ilp_elapsed_time
+        
+        # 输出结果
+        if status == pywraplp.Solver.OPTIMAL:
+            print("找到最优解")
+            count = sum(1 for i in range(len(k_subsets)) if x[i].solution_value() == 1)
+            print(f"最小数量: {count}")
+            
+            # 输出完整结果
+            selected_subsets = []
+            for i in range(len(k_subsets)):
+                if x[i].solution_value() == 1:
+                    selected_subsets.append(k_subsets[i])
+            
+            result_dict['ilp_solution'] = selected_subsets
+            
+            print("\nILP找到的集合:")
+            for i, subset in enumerate(selected_subsets, 1):
+                print(f"{i}. {','.join(map(str, sorted(subset)))}")
+            
+            # 比较两种算法的结果
+            print("\n算法比较:")
+            print(f"遗传算法找到的集合数量: {len(initial_solution)}")
+            print(f"ILP算法找到的集合数量: {len(selected_subsets)}")
+            
+        else:
+            print(f"求解状态: {status}")
+            if status == pywraplp.Solver.INFEASIBLE:
+                print("问题无可行解")
+            elif status == pywraplp.Solver.ABNORMAL:
+                print("求解器异常终止")
+            
+            result_dict['ilp_status'] = status
+            
+    except Exception as e:
+        print(f"ILP求解过程出错: {str(e)}")
+        result_dict['ilp_error'] = str(e)
+    
+    return result_dict
+
 def main(only_count=False, show_sets=False, use_cache=True):
+    """
+    主函数，作为命令行入口点，运行预设的测试用例
+    
+    参数:
+    only_count: 是否只显示集合数量
+    show_sets: 是否显示选择的集合
+    use_cache: 是否使用缓存加速计算
+    """
     # 测试用例列表
     test_cases = [
         # 测试用例7: n=7, k=6, j=5, s=5
@@ -798,65 +965,18 @@ def main(only_count=False, show_sets=False, use_cache=True):
         if not case['strict_coverage']:
             print(f"最小覆盖数: {case['min_cover']}")
         
-        # 测量性能 - 预计算时间
-        start_time = time.time()
+        # 调用run_test_case函数运行测试用例
+        result = run_test_case(case)
         
-        # 使用遗传算法生成初始解
-        print("使用遗传算法生成初始解...")
-        initial_solution, samples = generate_initial_solution_ga(
-            case['n'], case['k'], case['j'], case['s'], case['m'],
-            population_size=50,  # 减少种群大小
-            generations=100,     # 减少迭代次数
-            use_cache=use_cache  # 使用缓存
-        )
-        
-        elapsed_time = time.time() - start_time
-        print(f"遗传算法找到的初始解包含 {len(initial_solution)} 个集合")
-        print(f"总运行时间: {elapsed_time:.2f}秒")
-        
-        # 如果n大于8，直接使用遗传算法结果
-        if case['n'] > 8:
-            print(f"\n由于n={case['n']} > 8，跳过ILP求解，直接使用遗传算法结果")
-            # 结果已经在generate_initial_solution_ga函数中输出
-            continue
-        
-        # 构建ILP问题
-        solver, x, k_subsets, j_subsets, s_subsets, ilp_samples = construct_ilp_problem(
-            case['n'], case['k'], case['j'], case['s'], case['m'],
-            case['strict_coverage'], case['min_cover']
-        )
-        
-        # 设置SCIP求解器参数以优化性能
-        solver.SetTimeLimit(1800000)  # 30分钟，单位是毫秒
-        solver.SetNumThreads(0)  # 使用所有可用的CPU核心
-        solver.EnableOutput()  # 启用求解器输出
-        
-        # 求解问题
-        print("开始求解...")
-        status = solver.Solve()
-        
-        # 输出结果
-        if status == pywraplp.Solver.OPTIMAL:
-            print("找到最优解")
-            count = sum(1 for i in range(len(k_subsets)) if x[i].solution_value() == 1)
-            print(f"最小数量: {count}")
-            
-            if not only_count and show_sets:
-                # 输出完整结果
-                selected_subsets = []
-                for i in range(len(k_subsets)):
-                    if x[i].solution_value() == 1:
-                        selected_subsets.append(k_subsets[i])
-                
-                print("选择的集合:")
-                for i, subset in enumerate(selected_subsets, 1):
-                    print(f"{i}. {','.join(map(str, sorted(subset)))}")
-        else:
-            print(f"求解状态: {status}")
-            if status == pywraplp.Solver.INFEASIBLE:
-                print("问题无可行解")
-            elif status == pywraplp.Solver.ABNORMAL:
-                print("求解器异常终止")
+        # 如果需要，显示详细结果
+        if show_sets and result.get('ilp_solution'):
+            print("\n详细结果汇总:")
+            print(f"使用的样本集: {result['samples']}")
+            print(f"遗传算法解大小: {len(result['ga_solution'])}")
+            print(f"ILP算法解大小: {len(result['ilp_solution'])}")
+            print(f"遗传算法执行时间: {result['execution_time']:.2f}秒")
+            if 'ilp_execution_time' in result:
+                print(f"ILP执行时间: {result['ilp_execution_time']:.2f}秒")
 
 if __name__ == "__main__":
     main(only_count=False, show_sets=True, use_cache=True)
